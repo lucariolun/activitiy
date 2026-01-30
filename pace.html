@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>メトロノーム＆タイマー</title>
+<style>
+  body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #fffafc;
+    font-family: "Comic Sans MS", "Hiragino Maru Gothic ProN", cursive, sans-serif;
+  }
+
+  #count {
+    font-size: 64px;       /* 大きめ */
+    color: #ff69b4;        /* ピンク系でかわいく */
+    margin-bottom: 20px;
+    text-shadow: 2px 2px 4px rgba(255, 182, 193, 0.6);
+  }
+
+  button {
+    width: 220px;
+    height: 90px;
+    font-size: 26px;
+    margin: 20px;
+    border: none;
+    border-radius: 20px;
+    background-color: #87cefa;
+    color: white;
+    box-shadow: 0 6px 8px rgba(0,0,0,0.2);
+    font-family: "Hiragino Maru Gothic ProN", cursive, sans-serif;
+  }
+
+  button:active {
+    background-color: #00bfff;
+  }
+
+  #display {
+    font-size: 56px;
+    text-align: center;
+    margin-top: 40px;
+    color: #333;
+    font-family: "Comic Sans MS", "Hiragino Maru Gothic ProN", cursive, sans-serif;
+  }
+</style>
+</head>
+<body>
+
+<div id="count">0回</div>
+<button id="metronome">メトロノーム</button>
+<button id="timer">タイマー</button>
+<div id="display"></div>
+
+<script>
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+// クリック音
+function playClick() {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.frequency.value = 1000;
+  gain.gain.setValueAtTime(1, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.1);
+}
+
+// 音声読み上げ
+function speak(text) {
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = "ja-JP";
+  speechSynthesis.speak(utter);
+}
+
+// メトロノーム
+let metroInterval;
+function startMetronome() {
+  const interval = 60000 / 115;
+  metroInterval = setInterval(playClick, interval);
+}
+function stopMetronome() {
+  if (metroInterval) {
+    clearInterval(metroInterval);
+    metroInterval = null;
+  }
+}
+
+// 実行回数
+let runCount = 0;
+function updateCount() {
+  document.getElementById("count").textContent = runCount + "回";
+}
+
+document.getElementById("metronome").onclick = () => {
+  if (metroInterval) {
+    stopMetronome();
+  } else {
+    startMetronome();
+  }
+};
+
+// タイマー
+document.getElementById("timer").onclick = () => {
+  stopMetronome();
+
+  let time = 30;
+  document.getElementById("display").textContent = time + "秒";
+  const timer = setInterval(() => {
+    time--;
+    document.getElementById("display").textContent = time + "秒";
+
+    
+    if (time === 5) speak("残り5秒");
+    if (time === 0) {
+      speak("終了");
+      clearInterval(timer);
+      runCount++;       // 実行回数を増やす
+      updateCount();    // 表示更新（「◯回」）
+      startMetronome(); // 自動でメトロノーム再スタート
+    }
+  }, 1000);
+};
+</script>
+
+</body>
+</html>
