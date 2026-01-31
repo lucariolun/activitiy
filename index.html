@@ -175,6 +175,8 @@
   <button class="task-btn" id="task4">ペース</button>
 </div>
 
+<div id="taskMessage" style="font-size: 20px; color: #ff69b4; margin-top: 10px;"></div>
+
 <script>
 /* -------------------------
    AudioContext 初期化
@@ -418,22 +420,32 @@ function updateBackgroundMark() {
   const doneCount = [...tasks].filter(btn => btn.classList.contains("done")).length;
 
   const bg = document.getElementById("bgMark");
+  const msg = document.getElementById("taskMessage");
 
+  // まず背景とメッセージを初期化
   if (doneCount === 0) {
     bg.textContent = "";
+    msg.textContent = "";
     return;
   }
 
+  // 背景マーク（〇 / △）
   if (doneCount === tasks.length) {
     bg.textContent = "〇";
     bg.style.fontSize = "350px";
   } else {
     bg.textContent = "△";
-
     if (doneCount === 1) bg.style.fontSize = "200px";
     if (doneCount === 2) bg.style.fontSize = "250px";
     if (doneCount === 3) bg.style.fontSize = "300px";
   }
+
+  // ★ メッセージ
+  if (doneCount === 1) msg.textContent = "できた！";
+  else if (doneCount === 2) msg.textContent = "もう少し！";
+  else if (doneCount === 3) msg.textContent = "次で全クリアだよ！";
+  else if (doneCount === 4) msg.textContent = "やったね✌！";
+  else msg.textContent = "";
 }
 
 /* -------------------------
