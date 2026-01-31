@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>メトロノーム＆タイマー</title>
+<style>
+  body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #fffafc;
+    font-family: "Comic Sans MS", "Hiragino Maru Gothic ProN", cursive, sans-serif;
+    position: relative;
+  }
+
+  #bgMark {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 220px;
+    color: rgba(255, 200, 200, 0.35);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  #count {
+    font-size: 64px;
+    color: #ff69b4;
+    margin-bottom: 20px;
+    text-shadow: 2px 2px 4px rgba(255, 182, 193, 0.6);
+  }
+
+  button {
+    width: 220px;
+    height: 90px;
+    font-size: 26px;
+    margin: 20px;
+    border: none;
+    border-radius: 20px;
+    background-color: #87cefa;
+    color: white;
+    box-shadow: 0 6px 8px rgba(0,0,0,0.2);
+    font-family: "Hiragino Maru Gothic ProN", cursive, sans-serif;
+  }
+
+  button:active {
+    background-color: #00bfff;
+  }
+
+  #display {
+    font-size: 56px;
+    text-align: center;
+    margin-top: 40px;
+    color: #333;
+  }
+
+  .top-buttons {
+    display: flex;
+    gap: 20px;
+  }
+
+  .small-btn {
+    width: 100px;
+    height: 70px;
+    font-size: 22px;
+  }
+
+  #btn4min,
+  #btn2min,
+  #aiubeBtn {
+    background-color: #ffcc80;
+  }
+
+  /* ● のエリア */
+  .dot-area {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+  }
+
+  .dots {
+    width: 120px;
+    height: 24px;
+    font-size: 22px;
+    text-align: center;
+    white-space: nowrap;
+    font-weight: bold;
+  }
+
+  #dots-task1 { color: #ffb74d; }
+  #dots-task2 { color: #4fc3f7; }
+  #dots-task3 { color: #ce93d8; }
+  #dots-task4 { color: #81c784; }
+
+  /* タスクボタン */
+  .task-buttons {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+  }
+
+  .task-btn {
+    width: 120px;
+    height: 60px;
+    font-size: 22px;
+    border: none;
+    border-radius: 15px;
+    color: #444;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    position: relative;
+  }
+
+  #task1 { background-color: #ffe0b2; }
+  #task2 { background-color: #e1f5fe; }
+  #task3 { background-color: #f3e5f5; }
+  #task4 { background-color: #e8f5e9; }
+
+  .task-btn.done {
+    background-color: #fff8e1;
+    color: transparent;
+  }
+
+  .task-btn.done::before {
+    content: "✓";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 32px;
+    color: #666;
+  }
+</style>
+</head>
+<body>
+
+<div id="bgMark"></div>
+
+<div class="top-buttons">
+  <button id="btn4min" class="small-btn">4分</button>
+  <button id="btn2min" class="small-btn">2分</button>
+</div>
+
+<button id="aiubeBtn">あいうべ</button>
+
+<div id="count">0回</div>
+
+<button id="metronome">メトロノーム</button>
+<button id="timer">タイマー</button>
+
+<div id="display"></div>
+
+<!-- ● の表示エリア -->
+<div class="dot-area">
+  <div class="dots" id="dots-task1"></div>
+  <div class="dots" id="dots-task2"></div>
+  <div class="dots" id="dots-task3"></div>
+  <div class="dots" id="dots-task4"></div>
+</div>
+
+<!-- タスクボタン -->
+<div class="task-buttons">
+  <button class="task-btn" id="task1">腹式呼吸</button>
+  <button class="task-btn" id="task2">スポット</button>
+  <button class="task-btn" id="task3">あいうべ</button>
+  <button class="task-btn" id="task4">ペース</button>
+</div>
+
+<script>
+/* -------------------------
+   AudioContext 初期化
+------------------------- */
+let audioCtx = null;
+
+function initAudio() {
+  if (!audioCtx || audioCtx.state === "closed") {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === "suspended") {
+    audioCtx.resume();
+  }
+}
+
+/* -------------------------
+   クリック音
+------------------------- */
+function playClick() {
+  initAudio();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.frequency.value = 1000;
+  gain.gain.setValueAtTime(1, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.1);
+}
+
+/* -------------------------
+   メトロノーム
+------------------------- */
+let metroInterval;
+function startMetronome() {
+  initAudio();
+  const interval = 60000 / 115;
+  metroInterval = setInterval(playClick, interval);
+}
+function stopMetronome() {
+  if (metroInterval) {
+    clearInterval(metroInterval);
+    metroInterval = null;
+  }
+}
+
+/* -------------------------
+   実行回数
+------------------------- */
+let runCount = 0;
+function updateCount() {
+  document.getElementById("count").textContent = runCount + "回";
+}
+
+/* -------------------------
+   タイマー管理
+------------------------- */
+let currentTimer = null;
+let currentTimerType = null;
+
+function stopCurrentTimer() {
+  if (currentTimer) {
+    clearInterval(currentTimer);
+    currentTimer = null;
+    currentTimerType = null;
+    document.getElementById("display").textContent = "";
+  }
+}
+
+function runTimer(sec, restartMetro, type) {
+  if (currentTimerType === type) {
+    stopCurrentTimer();
+    return;
+  }
+
+  stopCurrentTimer();
+  stopMetronome();
+
+  currentTimerType = type;
+  let time = sec;
+
+  document.getElementById("display").textContent = time + "秒";
+
+  currentTimer = setInterval(() => {
+    time--;
+    document.getElementById("display").textContent = time + "秒";
+
+    if (time === 0) {
+      clearInterval(currentTimer);
+      currentTimer = null;
+      currentTimerType = null;
+
+      runCount++;
+      updateCount();
+
+      if (restartMetro) {
+        startMetronome();
+      }
+    }
+  }, 1000);
+}
+
+/* -------------------------
+   ● の管理（1日1個、月次リセット）
+------------------------- */
+const DOT_KEYS = {
+  task1: "dots_task1",
+  task2: "dots_task2",
+  task3: "dots_task3",
+  task4: "dots_task4"
+};
+
+const DOT_DATE_KEYS = {
+  task1: "dot_date_task1",
+  task2: "dot_date_task2",
+  task3: "dot_date_task3",
+  task4: "dot_date_task4"
+};
+
+function updateDots() {
+  Object.keys(DOT_KEYS).forEach(task => {
+    const dotBox = document.getElementById("dots-" + task);
+    const count = Number(localStorage.getItem(DOT_KEYS[task]) || 0);
+    dotBox.textContent = "★".repeat(count);
+  });
+}
+
+/* -------------------------
+   タスクボタン
+------------------------- */
+document.querySelectorAll(".task-btn").forEach(btn => {
+  btn.onclick = () => {
+    btn.classList.toggle("done");
+
+    const id = btn.id;
+    const today = new Date().toLocaleDateString("ja-JP");
+
+    const lastDotDate = localStorage.getItem(DOT_DATE_KEYS[id]);
+
+	if (btn.classList.contains("done")) {
+	  // ★を増やす（今日まだ付けていない場合だけ）
+	  if (lastDotDate !== today) {
+	    let count = Number(localStorage.getItem(DOT_KEYS[id]) || 0);
+	    count++;
+	    localStorage.setItem(DOT_KEYS[id], count);
+	    localStorage.setItem(DOT_DATE_KEYS[id], today);
+	  }
+	} else {
+	  // ★を取り消す（今日付けた分だけ）
+	  if (lastDotDate === today) {
+	    let count = Number(localStorage.getItem(DOT_KEYS[id]) || 0);
+	    if (count > 0) count--;
+	    localStorage.setItem(DOT_KEYS[id], count);
+	    localStorage.setItem(DOT_DATE_KEYS[id], ""); // 今日の記録を消す
+	  }
+	}
+
+    updateDots();
+
+    localStorage.setItem("lastDate", today);
+  };
+});
+
+/* -------------------------
+   Daily reset（✓だけ）
+------------------------- */
+function resetTasks() {
+  document.querySelectorAll(".task-btn").forEach(btn => {
+    btn.classList.remove("done");
+  });
+}
+
+function checkDailyReset() {
+  const today = new Date().toLocaleDateString("ja-JP");
+  const lastDate = localStorage.getItem("lastDate");
+
+  if (lastDate !== today) {
+    resetTasks();
+    localStorage.setItem("lastDate", today);
+  }
+}
+
+checkDailyReset();
+
+/* -------------------------
+   Monthly reset（●だけ）
+------------------------- */
+function checkMonthlyReset() {
+  const now = new Date();
+  const month = now.getMonth();
+  const savedMonth = Number(localStorage.getItem("dot_month") || -1);
+
+  if (savedMonth !== month) {
+    Object.values(DOT_KEYS).forEach(key => localStorage.setItem(key, 0));
+    Object.values(DOT_DATE_KEYS).forEach(key => localStorage.setItem(key, ""));
+    localStorage.setItem("dot_month", month);
+    updateDots();
+  }
+}
+
+checkMonthlyReset();
+updateDots();
+</script>
+
+</body>
+</html>
