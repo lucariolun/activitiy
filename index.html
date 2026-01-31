@@ -80,28 +80,27 @@
     background-color: #ffcc80;
   }
 
-  /* ● のエリア */
-  .dot-area {
+  /* ★エリア */
+  .star-area {
     display: flex;
     gap: 15px;
     margin-top: 20px;
   }
 
-  .dots {
+  .stars {
     width: 120px;
     height: 24px;
-    font-size: 22px;
+    font-size: 24px;
     text-align: center;
     white-space: nowrap;
     font-weight: bold;
   }
 
-  #dots-task1 { color: #ffb74d; }
-  #dots-task2 { color: #4fc3f7; }
-  #dots-task3 { color: #ce93d8; }
-  #dots-task4 { color: #81c784; }
+  #stars-task1 { color: #ff9800; }
+  #stars-task2 { color: #29b6f6; }
+  #stars-task3 { color: #ba68c8; }
+  #stars-task4 { color: #66bb6a; }
 
-  /* タスクボタン */
   .task-buttons {
     display: flex;
     gap: 15px;
@@ -158,12 +157,12 @@
 
 <div id="display"></div>
 
-<!-- ● の表示エリア -->
-<div class="dot-area">
-  <div class="dots" id="dots-task1"></div>
-  <div class="dots" id="dots-task2"></div>
-  <div class="dots" id="dots-task3"></div>
-  <div class="dots" id="dots-task4"></div>
+<!-- ★表示エリア -->
+<div class="star-area">
+  <div class="stars" id="stars-task1"></div>
+  <div class="stars" id="stars-task2"></div>
+  <div class="stars" id="stars-task3"></div>
+  <div class="stars" id="stars-task4"></div>
 </div>
 
 <!-- タスクボタン -->
@@ -186,6 +185,18 @@ function initAudio() {
   }
   if (audioCtx.state === "suspended") {
     audioCtx.resume();
+  }
+}
+
+/* -------------------------
+   SpeechSynthesis 初期化
+------------------------- */
+let speechInitialized = false;
+function initSpeech() {
+  if (!speechInitialized) {
+    const u = new SpeechSynthesisUtterance("");
+    speechSynthesis.speak(u);
+    speechInitialized = true;
   }
 }
 
@@ -262,7 +273,10 @@ function runTimer(sec, restartMetro, type) {
     time--;
     document.getElementById("display").textContent = time + "秒";
 
+    if (time === 5) speak("残り5秒");
+
     if (time === 0) {
+      speak("終了");
       clearInterval(currentTimer);
       currentTimer = null;
       currentTimerType = null;
@@ -278,65 +292,111 @@ function runTimer(sec, restartMetro, type) {
 }
 
 /* -------------------------
-   ● の管理（1日1個、月次リセット）
+   音声読み上げ
 ------------------------- */
-const DOT_KEYS = {
-  task1: "dots_task1",
-  task2: "dots_task2",
-  task3: "dots_task3",
-  task4: "dots_task4"
+function speak(text) {
+  initSpeech();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = "ja-JP";
+  speechSynthesis.speak(utter);
+}
+
+/* -------------------------
+   ボタン動作
+------------------------- */
+document.getElementById("metronome").onclick = () => {
+  initAudio();
+  if (metroInterval) stopMetronome();
+  else startMetronome();
 };
 
-const DOT_DATE_KEYS = {
-  task1: "dot_date_task1",
-  task2: "dot_date_task2",
-  task3: "dot_date_task3",
-  task4: "dot_date_task4"
+document.getElementById("timer").onclick = () => runTimer(30, true, "30sec");
+document.getElementById("btn4min").onclick = () => runTimer(240, false, "4min");
+document.getElementById("btn2min").onclick = () => runTimer(120, false, "2min");
+
+/* -------------------------
+   ★管理（1日1個・誤タップで今日の分だけ消える）
+------------------------- */
+const STAR_KEYS = {
+  task1: "stars_task1",
+  task2: "stars_task2",
+  task3: "stars_task3",
+  task4: "stars_task4"
 };
 
-function updateDots() {
-  Object.keys(DOT_KEYS).forEach(task => {
-    const dotBox = document.getElementById("dots-" + task);
-    const count = Number(localStorage.getItem(DOT_KEYS[task]) || 0);
-    dotBox.textContent = "★".repeat(count);
+const STAR_DATE_KEYS = {
+  task1: "star_date_task1",
+  task2: "star_date_task2",
+  task3: "star_date_task3",
+  task4: "star_date_task4"
+};
+
+function updateStars() {
+  Object.keys(STAR_KEYS).forEach(task => {
+    const box = document.getElementById("stars-" + task);
+    const count = Number(localStorage.getItem(STAR_KEYS[task]) || 0);
+    box.textContent = "★".repeat(count);
   });
 }
 
 /* -------------------------
-   タスクボタン
+   タスクボタン（✓＋★）
 ------------------------- */
 document.querySelectorAll(".task-btn").forEach(btn => {
   btn.onclick = () => {
     btn.classList.toggle("done");
+    updateBackgroundMark();
 
     const id = btn.id;
     const today = new Date().toLocaleDateString("ja-JP");
+    const lastStarDate = localStorage.getItem(STAR_DATE_KEYS[id]);
 
-    const lastDotDate = localStorage.getItem(DOT_DATE_KEYS[id]);
+    if (btn.classList.contains("done")) {
+      if (lastStarDate !== today) {
+        let count = Number(localStorage.getItem(STAR_KEYS[id]) || 0);
+        count++;
+        localStorage.setItem(STAR_KEYS[id], count);
+        localStorage.setItem(STAR_DATE_KEYS[id], today);
+      }
+    } else {
+      if (lastStarDate === today) {
+        let count = Number(localStorage.getItem(STAR_KEYS[id]) || 0);
+        if (count > 0) count--;
+        localStorage.setItem(STAR_KEYS[id], count);
+        localStorage.setItem(STAR_DATE_KEYS[id], "");
+      }
+    }
 
-	if (btn.classList.contains("done")) {
-	  // ★を増やす（今日まだ付けていない場合だけ）
-	  if (lastDotDate !== today) {
-	    let count = Number(localStorage.getItem(DOT_KEYS[id]) || 0);
-	    count++;
-	    localStorage.setItem(DOT_KEYS[id], count);
-	    localStorage.setItem(DOT_DATE_KEYS[id], today);
-	  }
-	} else {
-	  // ★を取り消す（今日付けた分だけ）
-	  if (lastDotDate === today) {
-	    let count = Number(localStorage.getItem(DOT_KEYS[id]) || 0);
-	    if (count > 0) count--;
-	    localStorage.setItem(DOT_KEYS[id], count);
-	    localStorage.setItem(DOT_DATE_KEYS[id], ""); // 今日の記録を消す
-	  }
-	}
-
-    updateDots();
-
+    updateStars();
     localStorage.setItem("lastDate", today);
   };
 });
+
+/* -------------------------
+   背景マーク
+------------------------- */
+function updateBackgroundMark() {
+  const tasks = document.querySelectorAll(".task-btn");
+  const doneCount = [...tasks].filter(btn => btn.classList.contains("done")).length;
+
+  const bg = document.getElementById("bgMark");
+
+  if (doneCount === 0) {
+    bg.textContent = "";
+    return;
+  }
+
+  if (doneCount === tasks.length) {
+    bg.textContent = "〇";
+    bg.style.fontSize = "300px";
+  } else {
+    bg.textContent = "△";
+
+    if (doneCount === 1) bg.style.fontSize = "140px";
+    if (doneCount === 2) bg.style.fontSize = "190px";
+    if (doneCount === 3) bg.style.fontSize = "240px";
+  }
+}
 
 /* -------------------------
    Daily reset（✓だけ）
@@ -345,6 +405,7 @@ function resetTasks() {
   document.querySelectorAll(".task-btn").forEach(btn => {
     btn.classList.remove("done");
   });
+  updateBackgroundMark();
 }
 
 function checkDailyReset() {
@@ -360,23 +421,23 @@ function checkDailyReset() {
 checkDailyReset();
 
 /* -------------------------
-   Monthly reset（●だけ）
+   Monthly reset（★だけ）
 ------------------------- */
 function checkMonthlyReset() {
   const now = new Date();
   const month = now.getMonth();
-  const savedMonth = Number(localStorage.getItem("dot_month") || -1);
+  const savedMonth = Number(localStorage.getItem("star_month") || -1);
 
   if (savedMonth !== month) {
-    Object.values(DOT_KEYS).forEach(key => localStorage.setItem(key, 0));
-    Object.values(DOT_DATE_KEYS).forEach(key => localStorage.setItem(key, ""));
-    localStorage.setItem("dot_month", month);
-    updateDots();
+    Object.values(STAR_KEYS).forEach(key => localStorage.setItem(key, 0));
+    Object.values(STAR_DATE_KEYS).forEach(key => localStorage.setItem(key, ""));
+    localStorage.setItem("star_month", month);
+    updateStars();
   }
 }
 
 checkMonthlyReset();
-updateDots();
+updateStars();
 </script>
 
 </body>
