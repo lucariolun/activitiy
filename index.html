@@ -314,6 +314,42 @@ document.getElementById("timer").onclick = () => runTimer(30, true, "30sec");
 document.getElementById("btn4min").onclick = () => runTimer(240, false, "4min");
 document.getElementById("btn2min").onclick = () => runTimer(120, false, "2min");
 
+
+/* -------------------------
+   あいうべボタン
+------------------------- */
+let aiubeRunning = false;
+
+document.getElementById("aiubeBtn").onclick = () => {
+  initSpeech();
+  const synth = window.speechSynthesis;
+
+  if (!aiubeRunning) {
+    aiubeRunning = true;
+    document.getElementById("aiubeBtn").textContent = "停止";
+
+    let delay = 0;
+    for (let i = 1; i <= 5; i++) {
+      const utter = new SpeechSynthesisUtterance(i.toString());
+      utter.lang = "ja-JP";
+      utter.rate = 0.6;
+
+      setTimeout(() => {
+        if (aiubeRunning) synth.speak(utter);
+      }, delay);
+
+      delay += 1500;
+    }
+
+  } else {
+    aiubeRunning = false;
+    synth.cancel();
+    document.getElementById("aiubeBtn").textContent = "あいうべ";
+  }
+};
+
+
+
 /* -------------------------
    ★管理（1日1個・誤タップで今日の分だけ消える）
 ------------------------- */
