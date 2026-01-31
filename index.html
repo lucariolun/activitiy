@@ -320,7 +320,7 @@ document.getElementById("btn2min").onclick = () => runTimer(120, false, "2min");
 
 
 /* -------------------------
-   あいうべボタン
+   あいうべボタン（ループ版）
 ------------------------- */
 let aiubeRunning = false;
 
@@ -332,18 +332,29 @@ document.getElementById("aiubeBtn").onclick = () => {
     aiubeRunning = true;
     document.getElementById("aiubeBtn").textContent = "停止";
 
-    let delay = 0;
-    for (let i = 1; i <= 5; i++) {
-      const utter = new SpeechSynthesisUtterance(i.toString());
-      utter.lang = "ja-JP";
-      utter.rate = 0.6;
+    const loop = () => {
+      if (!aiubeRunning) return; // 停止されたら抜ける
 
+      let delay = 0;
+      for (let i = 1; i <= 5; i++) {
+        const utter = new SpeechSynthesisUtterance(i.toString());
+        utter.lang = "ja-JP";
+        utter.rate = 0.6;
+
+        setTimeout(() => {
+          if (aiubeRunning) synth.speak(utter);
+        }, delay);
+
+        delay += 1000;
+      }
+
+      // 1〜5を読み終わったら、また最初からループ
       setTimeout(() => {
-        if (aiubeRunning) synth.speak(utter);
+        if (aiubeRunning) loop();
       }, delay);
+    };
 
-      delay += 1500;
-    }
+    loop(); // ループ開始
 
   } else {
     aiubeRunning = false;
